@@ -1,0 +1,54 @@
+name: Build 7-zip ARM64 MSI
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-2019
+
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set environment variables
+      run: |
+        echo "::set-env name=WORKSPACE_DIR::${{ github.workspace }}"
+        echo "::set-env name=BUILD_TEMP::${{ github.workspace }}\build"
+
+    - name: Create output directory
+      run: mkdir "${{ env.BUILD_TEMP }}"
+
+    - name: Build 7-zip for ARM64
+      run: .\build_7z.ps1
+
+    - name: Prepare MSI installer build
+      run: .\prepare_msi.ps1
+
+    - name: Build MSI installer for ARM64
+      run: .\build_msi.ps1
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: ${{ github.ref }}
+        body: 7-zip v19.00 for ARM64
+
+    - name: Upload MSI to Release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ env.BUILD_TEMP }}\msi\7z1900-arm64.msi
+        asset_name: 7z1900-arm64.msi
+        asset_content_type: application/octet-stream
